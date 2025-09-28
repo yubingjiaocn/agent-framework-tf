@@ -25,7 +25,7 @@ output "keycloak_database_username" {
   sensitive   = false
 }
 
-# ALB outputs
+# Main ALB outputs
 output "alb_dns_name" {
   description = "DNS name of the MCP Gateway Registry ALB"
   value       = module.alb.dns_name
@@ -50,6 +50,31 @@ output "alb_security_group_id" {
   sensitive   = false
 }
 
+# Keycloak ALB outputs
+output "keycloak_alb_dns_name" {
+  description = "DNS name of the Keycloak ALB"
+  value       = module.keycloak_alb.dns_name
+  sensitive   = false
+}
+
+output "keycloak_alb_zone_id" {
+  description = "Zone ID of the Keycloak ALB"
+  value       = module.keycloak_alb.zone_id
+  sensitive   = false
+}
+
+output "keycloak_alb_arn" {
+  description = "ARN of the Keycloak ALB"
+  value       = module.keycloak_alb.arn
+  sensitive   = false
+}
+
+output "keycloak_alb_security_group_id" {
+  description = "ID of the Keycloak ALB security group"
+  value       = module.keycloak_alb.security_group_id
+  sensitive   = false
+}
+
 # Service URLs
 output "service_urls" {
   description = "URLs for MCP Gateway Registry services"
@@ -57,7 +82,7 @@ output "service_urls" {
     registry = var.domain_name != "" ? "https://${var.domain_name}" : "http://${module.alb.dns_name}"
     auth     = var.domain_name != "" ? "https://${var.domain_name}:8888" : "http://${module.alb.dns_name}:8888"
     gradio   = var.domain_name != "" ? "https://${var.domain_name}:7860" : "http://${module.alb.dns_name}:7860"
-    keycloak = var.domain_name != "" ? "https://${var.domain_name}:8080" : "http://${module.alb.dns_name}:8080"
+    keycloak = "http://${module.keycloak_alb.dns_name}:8080"  # Always use internal ALB for Keycloak
   }
   sensitive = false
 }

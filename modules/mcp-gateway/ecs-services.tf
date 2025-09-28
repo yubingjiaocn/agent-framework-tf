@@ -79,11 +79,11 @@ module "ecs_service_auth" {
         },
         {
           name  = "KEYCLOAK_URL"
-          value = var.keycloak_url
+          value = "http://${module.keycloak_alb.dns_name}:8080"
         },
         {
           name  = "KEYCLOAK_EXTERNAL_URL"
-          value = var.keycloak_external_url != "" ? var.keycloak_external_url : var.keycloak_url
+          value = var.keycloak_external_url != "" ? var.keycloak_external_url : "http://${module.keycloak_alb.dns_name}:8080"
         },
         {
           name  = "KEYCLOAK_REALM"
@@ -172,6 +172,8 @@ module "ecs_service_auth" {
   }
 
   tags = local.common_tags
+
+  depends_on = [module.keycloak_alb]
 }
 
 # ECS Service: Registry (Main service with nginx, SSL, FAISS, models)
@@ -264,11 +266,11 @@ module "ecs_service_registry" {
         },
         {
           name  = "KEYCLOAK_URL"
-          value = var.keycloak_url
+          value = "http://${module.keycloak_alb.dns_name}:8080"
         },
         {
           name  = "KEYCLOAK_EXTERNAL_URL"
-          value = var.keycloak_external_url != "" ? var.keycloak_external_url : var.keycloak_url
+          value = var.keycloak_external_url != "" ? var.keycloak_external_url : "http://${module.keycloak_alb.dns_name}:8080"
         },
         {
           name  = "KEYCLOAK_REALM"
@@ -397,7 +399,7 @@ module "ecs_service_registry" {
 
   tags = local.common_tags
 
-  depends_on = [module.ecs_service_auth]
+  depends_on = [module.ecs_service_auth, module.keycloak_alb]
 }
 
 # ECS Service: Keycloak
@@ -538,7 +540,7 @@ module "ecs_service_keycloak" {
 
   load_balancer = {
     service = {
-      target_group_arn = module.alb.target_groups["keycloak"].arn
+      target_group_arn = module.keycloak_alb.target_groups["keycloak"].arn
       container_name   = "keycloak"
       container_port   = 8080
     }
@@ -551,7 +553,7 @@ module "ecs_service_keycloak" {
       from_port                    = 8080
       to_port                      = 8080
       ip_protocol                  = "tcp"
-      referenced_security_group_id = module.alb.security_group_id
+      referenced_security_group_id = module.keycloak_alb.security_group_id
     }
   }
   security_group_egress_rules = {
@@ -563,5 +565,5 @@ module "ecs_service_keycloak" {
 
   tags = local.common_tags
 
-  depends_on = [module.aurora_postgresql]
+  depends_on = [module.aurora_postgresql, module.keycloak_alb]
 }

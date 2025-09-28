@@ -157,9 +157,15 @@ variable "ingress_cidr_blocks" {
 
 # Keycloak Configuration
 variable "keycloak_url" {
-  description = "Keycloak server URL"
+  description = "Keycloak server URL (deprecated - now uses internal ALB automatically)"
   type        = string
-  default     = "http://keycloak:8080"
+  default     = ""
+}
+
+variable "keycloak_ingress_cidr" {
+  description = "CIDR block allowed to access Keycloak ALB (typically VPC CIDR)"
+  type        = string
+  default     = "10.0.0.0/16"
 }
 
 variable "keycloak_external_url" {

@@ -8,7 +8,7 @@ resource "aws_service_discovery_private_dns_namespace" "mcp" {
   tags        = local.common_tags
 }
 
-# Application Load Balancer
+# Main Application Load Balancer (for registry, auth, gradio)
 module "alb" {
   source  = "terraform-aws-modules/alb/aws"
   version = "~> 9.0"
@@ -46,12 +46,6 @@ module "alb" {
       ip_protocol = "tcp"
       cidr_ipv4   = var.ingress_cidr_blocks[0]
     }
-    keycloak_port = {
-      from_port   = 8080
-      to_port     = 8080
-      ip_protocol = "tcp"
-      cidr_ipv4   = var.ingress_cidr_blocks[0]
-    }
   }
   security_group_egress_rules = {
     all = {
@@ -80,13 +74,6 @@ module "alb" {
       protocol = "HTTP"
       forward = {
         target_group_key = "gradio"
-      }
-    }
-    keycloak = {
-      port     = 8080
-      protocol = "HTTP"
-      forward = {
-        target_group_key = "keycloak"
       }
     }
   }
@@ -155,6 +142,50 @@ module "alb" {
 
       create_attachment = false
     }
+  }
+
+  tags = local.common_tags
+}
+
+# Standalone Internal ALB for Keycloak
+module "keycloak_alb" {
+  source  = "terraform-aws-modules/alb/aws"
+  version = "~> 9.0"
+
+  name               = "${local.name_prefix}-keycloak-alb"
+  load_balancer_type = "application"
+  internal           = true  # Always internal for Keycloak
+
+  vpc_id  = var.vpc_id
+  subnets = var.private_subnet_ids
+
+  # Security Groups - Allow access from VPC CIDR
+  security_group_ingress_rules = {
+    keycloak_port = {
+      from_port   = 8080
+      to_port     = 8080
+      ip_protocol = "tcp"
+      cidr_ipv4   = var.keycloak_ingress_cidr
+    }
+  }
+  security_group_egress_rules = {
+    all = {
+      ip_protocol = "-1"
+      cidr_ipv4   = "0.0.0.0/0"
+    }
+  }
+
+  listeners = {
+    keycloak = {
+      port     = 8080
+      protocol = "HTTP"
+      forward = {
+        target_group_key = "keycloak"
+      }
+    }
+  }
+
+  target_groups = {
     keycloak = {
       backend_protocol                  = "HTTP"
       backend_port                      = 8080
@@ -178,5 +209,7 @@ module "alb" {
     }
   }
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, {
+    Purpose = "Keycloak Authentication"
+  })
 }
