@@ -1,4 +1,5 @@
 module "langfuse" {
+  count = var.deploy_langfuse ? 1 : 0
   source = "./modules/langfuse-terraform-aws"
 
   domain = "langfuse.example.com"
