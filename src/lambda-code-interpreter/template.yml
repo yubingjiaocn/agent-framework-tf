@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Sample functions for MCP servers.
+
+Resources:        
+  RunPythonCode:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Description: Run Python code in the { 'input_script' }. Install modules if { 'install_modules' } is not an empty list.
+      MemorySize: 1024
+      Timeout: 600
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      Architectures:
+        - arm64
+
+Outputs:
+
+  RunPythonCodeId:
+    Description: "RunPythonCode Function ARN"
+    Value: !GetAtt RunPythonCode.Arn
