@@ -196,10 +196,3 @@ output "keycloak_admin_credentials" {
   }
   sensitive = false
 }
-
-# Route53 record (if created)
-output "route53_record_name" {
-  description = "Route53 DNS record name (if created)"
-  value       = var.create_route53_record && var.domain_name != "" ? aws_route53_record.mcp[0].name : null
-  sensitive   = false
-}

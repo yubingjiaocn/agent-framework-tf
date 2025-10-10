@@ -34,23 +34,24 @@ module "ecs_service_auth" {
   # Enable Service Connect
   service_connect_configuration = {
     namespace = aws_service_discovery_private_dns_namespace.mcp.arn
-    service = {
+    service = [{
       client_alias = {
         port     = 8888
         dns_name = "auth-server"
       }
       port_name      = "auth-server"
       discovery_name = "auth-server"
-    }
+    }]
   }
 
   # Container definitions
   container_definitions = {
     auth-server = {
-      cpu       = tonumber(var.cpu)
-      memory    = tonumber(var.memory)
-      essential = true
-      image     = var.auth_server_image_uri
+      cpu                    = tonumber(var.cpu)
+      memory                 = tonumber(var.memory)
+      essential              = true
+      image                  = var.auth_server_image_uri
+      readonlyRootFilesystem = false
 
       portMappings = [
         {
@@ -67,7 +68,7 @@ module "ecs_service_auth" {
         },
         {
           name  = "AWS_REGION"
-          value = data.aws_region.current.name
+          value = data.aws_region.current.id
         },
         {
           name  = "AUTH_PROVIDER"
@@ -198,7 +199,10 @@ module "ecs_service_registry" {
   }
 
   # Task roles
-  task_exec_iam_role_arn = var.task_execution_role_arn
+  create_task_exec_iam_role = true
+  task_exec_iam_role_policies = {
+    SecretsManagerAccess = aws_iam_policy.ecs_secrets_access.arn
+  }
   create_tasks_iam_role  = true
   tasks_iam_role_policies = {
     SecretsManagerAccess = aws_iam_policy.ecs_secrets_access.arn
@@ -207,23 +211,24 @@ module "ecs_service_registry" {
   # Enable Service Connect
   service_connect_configuration = {
     namespace = aws_service_discovery_private_dns_namespace.mcp.arn
-    service = {
+    service = [{
       client_alias = {
         port     = 7860
         dns_name = "registry"
       }
       port_name      = "registry"
       discovery_name = "registry"
-    }
+    }]
   }
 
   # Container definitions
   container_definitions = {
     registry = {
-      cpu       = tonumber(var.cpu)
-      memory    = tonumber(var.memory)
-      essential = true
-      image     = var.registry_image_uri
+      cpu                    = tonumber(var.cpu)
+      memory                 = tonumber(var.memory)
+      essential              = true
+      image                  = var.registry_image_uri
+      readonlyRootFilesystem = false
 
       portMappings = [
         {
@@ -245,6 +250,10 @@ module "ecs_service_registry" {
 
       environment = [
         {
+          name  = "EC2_PUBLIC_DNS"
+          value = var.domain_name != "" ? var.domain_name : module.alb.dns_name
+        },
+        {
           name  = "AUTH_SERVER_URL"
           value = "http://auth-server:8888"
         },
@@ -254,7 +263,7 @@ module "ecs_service_registry" {
         },
         {
           name  = "AWS_REGION"
-          value = data.aws_region.current.name
+          value = data.aws_region.current.id
         },
         {
           name  = "AUTH_PROVIDER"
@@ -353,18 +362,18 @@ module "ecs_service_registry" {
     }
   }
 
-  load_balancer = [
-    {
+  load_balancer = {
+    http = {
       target_group_arn = module.alb.target_groups["registry"].arn
       container_name   = "registry"
       container_port   = 80
-    },
-    {
+    }
+    gradio = {
       target_group_arn = module.alb.target_groups["gradio"].arn
       container_name   = "registry"
       container_port   = 7860
     }
-  ]
+  }
 
   subnet_ids = var.private_subnet_ids
   security_group_ingress_rules = {
@@ -424,7 +433,10 @@ module "ecs_service_keycloak" {
   }
 
   # Task roles
-  task_exec_iam_role_arn = var.task_execution_role_arn
+  create_task_exec_iam_role = true
+  task_exec_iam_role_policies = {
+    SecretsManagerAccess = aws_iam_policy.ecs_secrets_access.arn
+  }
   create_tasks_iam_role  = true
   tasks_iam_role_policies = {
     SecretsManagerAccess = aws_iam_policy.ecs_secrets_access.arn
@@ -433,29 +445,35 @@ module "ecs_service_keycloak" {
   # Enable Service Connect
   service_connect_configuration = {
     namespace = aws_service_discovery_private_dns_namespace.mcp.arn
-    service = {
+    service = [{
       client_alias = {
         port     = 8080
         dns_name = "keycloak"
       }
       port_name      = "keycloak"
       discovery_name = "keycloak"
-    }
+    }]
   }
 
   # Container definitions
   container_definitions = {
     keycloak = {
-      cpu       = tonumber(var.cpu)
-      memory    = tonumber(var.memory)
-      essential = true
-      image     = var.keycloak_image_uri
-      command   = ["start-dev"]
+      cpu                    = tonumber(var.cpu)
+      memory                 = tonumber(var.memory)
+      essential              = true
+      image                  = var.keycloak_image_uri
+      command                = ["start-dev"]
+      readonlyRootFilesystem = false
 
       portMappings = [
         {
           name           = "keycloak"
           containerPort = 8080
+          protocol       = "tcp"
+        },
+        {
+          name           = "keycloak-mgmt"
+          containerPort = 9000
           protocol       = "tcp"
         }
       ]
@@ -519,11 +537,11 @@ module "ecs_service_keycloak" {
       cloudwatch_log_group_retention_in_days = 30
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+        command     = ["CMD-SHELL", "curl -f http://localhost:9000/health/ready || exit 1"]
         interval    = 30
         timeout     = 5
-        retries     = 3
-        startPeriod = 60
+        retries     = 5
+        startPeriod = 120
       }
     }
   }
@@ -552,6 +570,13 @@ module "ecs_service_keycloak" {
       description                  = "Keycloak port"
       from_port                    = 8080
       to_port                      = 8080
+      ip_protocol                  = "tcp"
+      referenced_security_group_id = module.keycloak_alb.security_group_id
+    }
+    alb_9000 = {
+      description                  = "Keycloak management port"
+      from_port                    = 9000
+      to_port                      = 9000
       ip_protocol                  = "tcp"
       referenced_security_group_id = module.keycloak_alb.security_group_id
     }

@@ -32,25 +32,34 @@ variable "ecs_cluster_name" {
 }
 
 variable "task_execution_role_arn" {
-  description = "ARN of the task execution IAM role"
+  description = "ARN of the task execution IAM role (DEPRECATED: Module now creates its own task execution roles)"
   type        = string
+  default     = ""
 }
 
-# ECR Image URIs
+# Container Image URIs (pre-built images from Docker Hub)
 variable "registry_image_uri" {
-  description = "ECR URI for registry service image"
+  description = "Container image URI for registry service (defaults to pre-built image from mcpgateway Docker Hub)"
   type        = string
+  default     = "mcpgateway/registry:latest"
 }
 
 variable "auth_server_image_uri" {
-  description = "ECR URI for auth server service image"
+  description = "Container image URI for auth server service (defaults to pre-built image from mcpgateway Docker Hub)"
   type        = string
+  default     = "mcpgateway/auth-server:latest"
 }
 
 variable "keycloak_image_uri" {
-  description = "ECR URI for Keycloak service image"
+  description = "Container image URI for Keycloak service (defaults to official Keycloak image, mirrored at mcpgateway/keycloak)"
   type        = string
-  default     = "quay.io/keycloak/keycloak:25.0"
+  default     = "mcpgateway/keycloak:latest"
+}
+
+variable "dockerhub_org" {
+  description = "Docker Hub organization for pre-built images"
+  type        = string
+  default     = "mcpgateway"
 }
 
 
@@ -142,7 +151,7 @@ variable "keycloak_admin_username" {
 variable "alb_scheme" {
   description = "Scheme for the ALB (internal or internet-facing)"
   type        = string
-  default     = "internet-facing"
+  default     = "internal"
   validation {
     condition     = contains(["internal", "internet-facing"], var.alb_scheme)
     error_message = "ALB scheme must be either 'internal' or 'internet-facing'."

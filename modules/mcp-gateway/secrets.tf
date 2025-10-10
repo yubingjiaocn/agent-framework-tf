@@ -37,7 +37,7 @@ resource "random_password" "keycloak_admin_password" {
 # Core application secrets
 
 resource "aws_secretsmanager_secret" "secret_key" {
-  name        = "${local.name_prefix}-secret-key"
+  name_prefix = "${local.name_prefix}-secret-key-"
   description = "Secret key for MCP Gateway Registry"
   tags        = local.common_tags
 }
@@ -48,7 +48,7 @@ resource "aws_secretsmanager_secret_version" "secret_key" {
 }
 
 resource "aws_secretsmanager_secret" "admin_password" {
-  name        = "${local.name_prefix}-admin-password"
+  name_prefix = "${local.name_prefix}-admin-password-"
   description = "Admin password for MCP Gateway Registry"
   tags        = local.common_tags
 }
@@ -60,7 +60,7 @@ resource "aws_secretsmanager_secret_version" "admin_password" {
 
 # Keycloak database secrets
 resource "aws_secretsmanager_secret" "keycloak_database_url" {
-  name        = "${local.name_prefix}-keycloak-database-url"
+  name_prefix = "${local.name_prefix}-keycloak-database-url-"
   description = "Database URL for Keycloak PostgreSQL"
   tags        = local.common_tags
 }
@@ -71,7 +71,7 @@ resource "aws_secretsmanager_secret_version" "keycloak_database_url" {
 }
 
 resource "aws_secretsmanager_secret" "keycloak_db_password" {
-  name        = "${local.name_prefix}-keycloak-db-password"
+  name_prefix = "${local.name_prefix}-keycloak-db-password-"
   description = "Database password for Keycloak PostgreSQL"
   tags        = local.common_tags
 }
@@ -82,7 +82,7 @@ resource "aws_secretsmanager_secret_version" "keycloak_db_password" {
 }
 
 resource "aws_secretsmanager_secret" "keycloak_admin_password" {
-  name        = "${local.name_prefix}-keycloak-admin-password"
+  name_prefix = "${local.name_prefix}-keycloak-admin-password-"
   description = "Admin password for Keycloak"
   tags        = local.common_tags
 }
@@ -95,7 +95,7 @@ resource "aws_secretsmanager_secret_version" "keycloak_admin_password" {
 # Keycloak Secrets (conditional)
 resource "aws_secretsmanager_secret" "keycloak_client_secret" {
   count       = var.keycloak_client_secret != "" ? 1 : 0
-  name        = "${local.name_prefix}-keycloak-client-secret"
+  name_prefix = "${local.name_prefix}-keycloak-client-secret-"
   description = "Keycloak client secret for MCP Gateway Registry"
   tags        = local.common_tags
 }
@@ -108,7 +108,7 @@ resource "aws_secretsmanager_secret_version" "keycloak_client_secret" {
 
 resource "aws_secretsmanager_secret" "keycloak_m2m_client_secret" {
   count       = var.keycloak_m2m_client_secret != "" ? 1 : 0
-  name        = "${local.name_prefix}-keycloak-m2m-client-secret"
+  name_prefix = "${local.name_prefix}-keycloak-m2m-client-secret-"
   description = "Keycloak M2M client secret for MCP Gateway Registry"
   tags        = local.common_tags
 }

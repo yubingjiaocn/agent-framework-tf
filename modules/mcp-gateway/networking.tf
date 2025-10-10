@@ -16,6 +16,7 @@ module "alb" {
   name               = "${local.name_prefix}-alb"
   load_balancer_type = "application"
   internal           = var.alb_scheme == "internal"
+  enable_deletion_protection = false
 
   vpc_id  = var.vpc_id
   subnets = var.alb_scheme == "internal" ? var.private_subnet_ids : var.public_subnet_ids
@@ -152,9 +153,10 @@ module "keycloak_alb" {
   source  = "terraform-aws-modules/alb/aws"
   version = "~> 9.0"
 
-  name               = "${local.name_prefix}-keycloak-alb"
+  name               = "${local.name_prefix}-kc-alb"
   load_balancer_type = "application"
   internal           = true  # Always internal for Keycloak
+  enable_deletion_protection = false
 
   vpc_id  = var.vpc_id
   subnets = var.private_subnet_ids
@@ -199,7 +201,7 @@ module "keycloak_alb" {
         interval            = 60
         matcher             = "200"
         path                = "/health/ready"
-        port                = "traffic-port"
+        port                = 9000
         protocol            = "HTTP"
         timeout             = 10
         unhealthy_threshold = 3

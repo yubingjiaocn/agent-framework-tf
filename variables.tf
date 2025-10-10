@@ -15,3 +15,9 @@ variable "deploy_langfuse" {
   type = bool
   default = true
 }
+
+variable "deploy_mcp_gateway" {
+  description = "Whether to deploy MCP Gateway (uses pre-built images from mcpgateway Docker Hub by default)"
+  type        = bool
+  default     = true
+}

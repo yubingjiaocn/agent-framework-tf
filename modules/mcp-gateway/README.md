@@ -22,11 +22,39 @@ The module deploys two main services:
 
 ## Usage
 
+### Basic Usage (with pre-built images)
+
 ```hcl
 module "mcp_gateway" {
   source = "./modules/mcp-gateway"
 
-  # Required variables
+  # Required: Basic configuration
+  name = "mcp-gateway-prod"
+
+  # Required: Network configuration
+  vpc_id             = "vpc-12345678"
+  private_subnet_ids = ["subnet-12345678", "subnet-87654321"]
+  public_subnet_ids  = ["subnet-abcdef12", "subnet-21fedcba"]
+
+  # Required: ECS configuration
+  ecs_cluster_arn         = "arn:aws:ecs:us-west-2:123456789012:cluster/my-cluster"
+  ecs_cluster_name        = "my-cluster"
+  task_execution_role_arn = "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
+
+  # Optional: Keycloak configuration
+  keycloak_ingress_cidr = "10.0.0.0/16"  # VPC CIDR for internal access
+
+  # That's it! Module uses pre-built images from mcpgateway Docker Hub by default
+}
+```
+
+### Advanced Usage (with custom configuration)
+
+```hcl
+module "mcp_gateway" {
+  source = "./modules/mcp-gateway"
+
+  # Required configuration
   name                    = "mcp-gateway-prod"
   vpc_id                  = "vpc-12345678"
   private_subnet_ids      = ["subnet-12345678", "subnet-87654321"]
@@ -35,41 +63,39 @@ module "mcp_gateway" {
   ecs_cluster_name        = "my-cluster"
   task_execution_role_arn = "arn:aws:iam::123456789012:role/ecsTaskExecutionRole"
 
-  # Container images (build and push to ECR first)
-  registry_image_uri    = "123456789012.dkr.ecr.us-west-2.amazonaws.com/mcp-gateway-registry:latest"
-  auth_server_image_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/mcp-gateway-auth:latest"
+  # Optional: Custom container images (override pre-built images)
+  # registry_image_uri    = "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-registry:latest"
+  # auth_server_image_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-auth:latest"
+  # keycloak_image_uri    = "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-keycloak:latest"
 
-  # Keycloak configuration
-  keycloak_url               = "https://keycloak.example.com"
-  keycloak_external_url      = "https://keycloak.example.com"
-  keycloak_realm             = "mcp-gateway"
-  keycloak_client_id         = "mcp-gateway-web"
-  keycloak_client_secret     = "your-client-secret"
-  keycloak_m2m_client_id     = "mcp-gateway-m2m"
-  keycloak_m2m_client_secret = "your-m2m-client-secret"
-
-  # Optional domain configuration
+  # Optional: Domain configuration
   domain_name           = "mcp.example.com"
   create_route53_record = true
   route53_zone_id       = "Z1D633PJN98FT9"
 
-  # Resource configuration
-  cpu               = "1024"
-  memory            = "2048"
+  # Optional: Resource configuration
+  cpu               = "2048"
+  memory            = "4096"
   registry_replicas = 2
   auth_replicas     = 2
+  keycloak_replicas = 2
 
-  # Database configuration
-  postgres_min_capacity = 0.5
-  postgres_max_capacity = 4.0
+  # Optional: Database configuration
+  keycloak_postgres_min_capacity = 0.5
+  keycloak_postgres_max_capacity = 4.0
 
-  # Networking
-  alb_scheme         = "internet-facing"
-  ingress_cidr_blocks = ["0.0.0.0/0"]
+  # Optional: Networking
+  alb_scheme            = "internet-facing"
+  ingress_cidr_blocks   = ["0.0.0.0/0"]
+  keycloak_ingress_cidr = "10.0.0.0/16"
 
-  # Tags
-  environment     = "prod"
+  # Optional: Keycloak client secrets (if pre-configured)
+  keycloak_client_secret     = "your-client-secret"
+  keycloak_m2m_client_secret = "your-m2m-client-secret"
+
+  # Optional: Tags
   additional_tags = {
+    Environment = "production"
     Owner       = "platform-team"
     CostCenter  = "engineering"
   }
@@ -79,29 +105,52 @@ module "mcp_gateway" {
 ## Prerequisites
 
 1. **Existing Infrastructure**: This module requires existing VPC, ECS cluster, and task execution role
-2. **Container Images**: Build and push container images to ECR using the provided build script
-3. **Keycloak Setup**: Configure Keycloak realm and clients
+2. **Container Images**: Module now uses pre-built images from Docker Hub (mcpgateway organization) by default - no build required!
+3. **Keycloak Setup**: Keycloak is automatically deployed as part of this module with Aurora PostgreSQL backend
 
-## Building Container Images
+## Container Images
 
-Use the provided build script to create and push container images to ECR:
+This module uses **pre-built images** from Docker Hub by default:
 
-```bash
-# Run from the root directory containing mcp-gateway-registry source
-./build-and-push-ecr.sh
+- `mcpgateway/registry:latest` - Main MCP Gateway Registry service
+- `mcpgateway/auth-server:latest` - Authentication service
+- `mcpgateway/keycloak:latest` - Keycloak identity provider
 
-# Or just check prerequisites and create repositories
-./build-and-push-ecr.sh --check-only
+These images are automatically pulled from Docker Hub and match the official deployment from:
+https://github.com/agentic-community/mcp-gateway-registry
+
+**No build step required!** Simply deploy the module and it will use the latest pre-built images.
+
+If you need to use custom images (e.g., from ECR), you can override the default image URIs:
+
+```hcl
+module "mcp_gateway" {
+  source = "./modules/mcp-gateway"
+
+  # Override with custom images
+  registry_image_uri    = "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-registry:latest"
+  auth_server_image_uri = "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-auth:latest"
+
+  # ... other configuration
+}
 ```
 
 ## Keycloak Configuration
 
-The module is configured to use Keycloak as the only authentication provider. You need to:
+**Keycloak is automatically deployed** as part of this module with the following setup:
 
-1. Set up a Keycloak server (can be external or in the same cluster)
-2. Create a realm (default: `mcp-gateway`)
-3. Create a web client for the UI (default: `mcp-gateway-web`)
-4. Create a machine-to-machine client for API access (default: `mcp-gateway-m2m`)
+- **Database**: Aurora Serverless PostgreSQL (auto-scaling, separate from application data)
+- **Default Realm**: `mcp-gateway`
+- **Default Clients**: `mcp-gateway-web` (web UI) and `mcp-gateway-m2m` (machine-to-machine)
+- **Internal Access**: Via dedicated internal ALB for service-to-service communication
+- **Admin Credentials**: Stored securely in AWS Secrets Manager
+
+After deployment, you can access Keycloak admin console using the credentials from Secrets Manager to:
+
+1. Configure additional realms and clients
+2. Set up identity providers (LDAP, SAML, Social logins)
+3. Customize authentication flows
+4. Manage users and groups
 
 ## Inputs
 
@@ -114,8 +163,9 @@ The module is configured to use Keycloak as the only authentication provider. Yo
 | ecs_cluster_arn | ARN of the existing ECS cluster | `string` | n/a | yes |
 | ecs_cluster_name | Name of the existing ECS cluster | `string` | n/a | yes |
 | task_execution_role_arn | ARN of the task execution IAM role | `string` | n/a | yes |
-| registry_image_uri | ECR URI for registry service image | `string` | n/a | yes |
-| auth_server_image_uri | ECR URI for auth server service image | `string` | n/a | yes |
+| registry_image_uri | Container image URI for registry service | `string` | `"mcpgateway/registry:latest"` | no |
+| auth_server_image_uri | Container image URI for auth server service | `string` | `"mcpgateway/auth-server:latest"` | no |
+| keycloak_image_uri | Container image URI for Keycloak service | `string` | `"mcpgateway/keycloak:latest"` | no |
 | cpu | CPU allocation for containers | `string` | `"1024"` | no |
 | memory | Memory allocation for containers | `string` | `"2048"` | no |
 | registry_replicas | Number of replicas for registry service | `number` | `1` | no |
