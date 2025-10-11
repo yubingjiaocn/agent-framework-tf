@@ -1,4 +1,5 @@
 data "aws_region" "current" {}
+data "aws_partition" "current" {}
 
 # ECS Cluster using terraform-aws-modules/ecs/aws//modules/cluster
 module "ecs_cluster" {
@@ -38,7 +39,7 @@ module "ecs_cluster" {
 
   # Additional policies for task execution role
   task_exec_iam_role_policies = {
-    AmazonECSTaskExecutionRolePolicy = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    AmazonECSTaskExecutionRolePolicy = "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
   }
 
   tags = {
