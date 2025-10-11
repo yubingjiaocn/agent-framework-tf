@@ -21,3 +21,9 @@ variable "deploy_mcp_gateway" {
   type        = bool
   default     = true
 }
+
+variable "deploy_lambda_code_interpreter" {
+  description = "Whether to deploy Lambda Code Interpreter"
+  type        = bool
+  default     = true
+}

@@ -121,7 +121,7 @@ variable "cloudwatch_logs_retention_in_days" {
 variable "tracing_mode" {
   description = "X-Ray tracing mode (Active, PassThrough)"
   type        = string
-  default     = null
+  default     = "PassThrough"
   validation {
     condition     = var.tracing_mode == null || contains(["Active", "PassThrough"], var.tracing_mode)
     error_message = "Tracing mode must be either Active or PassThrough."
